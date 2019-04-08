@@ -12,7 +12,7 @@ public class PersonDto {
 
     private Integer age;
 
-    private List<Phone> phones;
+    private List<PhoneDto> phones;
 
     public Long getId() {
         return id;
@@ -38,11 +38,11 @@ public class PersonDto {
         this.age = age;
     }
 
-    public List<Phone> getPhones() {
+    public List<PhoneDto> getPhones() {
         return phones;
     }
 
-    public void setPhones(List<Phone> phones) {
+    public void setPhones(List<PhoneDto> phones) {
         this.phones = phones;
     }
 }
