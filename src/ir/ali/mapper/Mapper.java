@@ -2,6 +2,7 @@ package ir.ali.mapper;
 
 import ir.ali.mapper.annotations.MapTo;
 import ir.ali.mapper.annotations.NotMap;
+import ir.ali.mapper.annotations.PrimaryKey;
 
 import java.lang.reflect.Field;
 import java.util.*;
@@ -96,8 +97,44 @@ public class Mapper {
                     } else {
                         List entityNeedMapList = (List) entity.getClass().getDeclaredMethod(getGetFieldName(field)).invoke(entity);
                         List dtoNeedMapList = (List) dto.getClass().getMethod(getGetFieldName(destination)).invoke(dto);
+
+                        // find primary key field from entityNeedMapListObject
+                        Field primaryKeyField = getPrimaryKey(entityListType);
+
                         for (int i = 0; i < entityNeedMapList.size(); i++) {
-                            map(entityNeedMapList.get(i),dtoNeedMapList.get(i));
+                            // get primary key object depends on primary key field from entity
+                            Object entityPrimaryKeyObject = entityNeedMapList.get(i).getClass().getMethod(getGetFieldName(primaryKeyField)).invoke(entityNeedMapList.get(i));
+                            for (int ii = 0; ii < dtoNeedMapList.size(); ii++) {
+                                // get primary key object depends on primary key field from dto
+                                Object dtoPrimaryKeyObject = dtoNeedMapList.get(ii).getClass().getDeclaredMethod(getGetFieldName(primaryKeyField)).invoke(dtoNeedMapList.get(ii));
+                                // find equality of primary key object and entityNeedMapList
+                                if (entityPrimaryKeyObject.equals(dtoPrimaryKeyObject)) {
+                                    map(entityNeedMapList.get(ii),dtoNeedMapList.get(i));
+                                    break;
+                                }
+                                if (ii == dtoNeedMapList.size() - 1) {
+                                    // delete if was not found
+                                    entityNeedMapList.remove(i);
+                                }
+                            }
+                        }
+
+                        for (int i = 0; i < dtoNeedMapList.size(); i++) {
+                            // get primary key object depends on primary key field from dto
+                            Object dtoPrimaryKeyObject = dtoNeedMapList.get(i).getClass().getDeclaredMethod(getGetFieldName(primaryKeyField)).invoke(dtoNeedMapList.get(i));
+                            for (int ii = 0; ii < entityNeedMapList.size(); ii++) {
+                                // get primary key object depends on primary key field from entity
+                                Object entityPrimaryKeyObject = entityNeedMapList.get(ii).getClass().getMethod(getGetFieldName(primaryKeyField)).invoke(entityNeedMapList.get(ii));
+                                // find equality of primary key object and entityNeedMapList
+                                if (entityPrimaryKeyObject.equals(dtoPrimaryKeyObject)) {
+                                    break;
+                                }
+                                if (ii == entityNeedMapList.size() - 1) {
+                                    // insert new object into entityNeedMapList
+                                    Object entityNeedMapObject = map(entityListType, dtoNeedMapList.get(i));
+                                    entityNeedMapList.add(entityNeedMapObject);
+                                }
+                            }
                         }
                     }
                 } else {
@@ -113,6 +150,16 @@ public class Mapper {
                 }
             }
         }
+    }
+
+    private static Field getPrimaryKey(Class type) {
+        Field[] fields = type.getDeclaredFields();
+        for (Field field : fields) {
+            if (Objects.nonNull(field.getDeclaredAnnotation(PrimaryKey.class))) {
+                return field;
+            }
+        }
+        return null;
     }
 
     /**
