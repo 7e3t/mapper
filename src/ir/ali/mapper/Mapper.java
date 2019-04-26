@@ -55,12 +55,12 @@ public class Mapper {
      * @return the initialized entity
      * @throws Exception every thing that happened
      */
-    public static <T,U> T map(Class<T> entityType, U dto) throws Exception {
+    public static <T,U> T map(Class<T> entityType, U dto, String... unMapFields) throws Exception {
         if (Objects.isNull(entityType)) {
             throw new NullArgumentException();
         }
         T entity = entityType.getDeclaredConstructor().newInstance();
-        map(entity,dto);
+        map(entity, dto, unMapFields);
         return entity;
     }
 
@@ -72,7 +72,9 @@ public class Mapper {
      * @param <U> dto class
      * @throws Exception every thing happened
      */
-    public static <T,U> void map(T entity, U dto) throws MapperException {
+    public static <T,U> void map(T entity, U dto, String... unMapFields) throws MapperException {
+
+        List<String> unMapFieldsList = Arrays.asList(unMapFields);
 
         if (Objects.isNull(entity) || Objects.isNull(dto)) {
             throw new NullArgumentException();
@@ -80,7 +82,7 @@ public class Mapper {
 
         List<Field> entityFields                = Arrays.asList(entity.getClass().getDeclaredFields());
         Map<Field,String> goingToBeMapEntityFields = entityFields .stream()
-                .filter(field -> Objects.isNull(field.getAnnotation(NotMap.class)))
+                .filter(field -> Objects.isNull(field.getAnnotation(NotMap.class)) && !unMapFieldsList.contains(field.getName()))
                 .collect(Collectors.toMap(field -> field,field -> Objects.isNull(field.getAnnotation(MapTo.class))
                         ? field.getName()
                         : field.getAnnotation(MapTo.class).value()));
@@ -89,6 +91,13 @@ public class Mapper {
 
             Field field = pair.getKey();
             String destination = pair.getValue();
+
+            List<String> specificUnMapFiledList = new ArrayList<>(unMapFieldsList.stream().filter(s -> s.contains(field.getName()+".")).collect(Collectors.toList()));
+            String[] specificUnMapFiledArray = new String[specificUnMapFiledList.size()];
+            for (int i = 0; i < specificUnMapFiledList.size(); i++) {
+                specificUnMapFiledList.set(i, specificUnMapFiledList.get(i).substring(field.getName().length()+1));
+                specificUnMapFiledArray[i] = specificUnMapFiledList.get(i);
+            }
 
             try {
                 if (isList(field.getType())) {
@@ -99,7 +108,7 @@ public class Mapper {
                             List entityNeedMapList = (List) entity.getClass().getDeclaredMethod(getGetFieldName(field)).invoke(entity);
                             List dtoNeedMapList = (List) dto.getClass().getMethod(getGetFieldName(destination)).invoke(dto);
                             for (Object dtoNeedMapObject : dtoNeedMapList) {
-                                Object entityNeedMapObject = map(entityListType, dtoNeedMapObject);
+                                Object entityNeedMapObject = map(entityListType, dtoNeedMapObject, specificUnMapFiledArray);
                                 entityNeedMapList.add(entityNeedMapObject);
                             }
                         } else {
@@ -116,12 +125,18 @@ public class Mapper {
                             for (int i = 0; i < entityNeedMapList.size(); i++) {
                                 // get primary key object depends on primary key field from entity
                                 Object entityPrimaryKeyObject = entityNeedMapList.get(i).getClass().getMethod(getGetFieldName(primaryKeyField)).invoke(entityNeedMapList.get(i));
+                                if (Objects.isNull(entityPrimaryKeyObject)) {
+                                    throw new UnsetPrimaryKey();
+                                }
                                 for (int ii = 0; ii < dtoNeedMapList.size(); ii++) {
                                     // get primary key object depends on primary key field from dto
                                     Object dtoPrimaryKeyObject = dtoNeedMapList.get(ii).getClass().getDeclaredMethod(getGetFieldName(primaryKeyField)).invoke(dtoNeedMapList.get(ii));
+                                    if (Objects.isNull(dtoPrimaryKeyObject)) {
+                                        throw new UnsetPrimaryKey();
+                                    }
                                     // find equality of primary key object and entityNeedMapList
                                     if (entityPrimaryKeyObject.equals(dtoPrimaryKeyObject)) {
-                                        map(entityNeedMapList.get(ii),dtoNeedMapList.get(i));
+                                        map(entityNeedMapList.get(ii),dtoNeedMapList.get(i), specificUnMapFiledArray);
                                         break;
                                     }
                                     if (ii == dtoNeedMapList.size() - 1) {
@@ -134,16 +149,22 @@ public class Mapper {
                             for (int i = 0; i < dtoNeedMapList.size(); i++) {
                                 // get primary key object depends on primary key field from dto
                                 Object dtoPrimaryKeyObject = dtoNeedMapList.get(i).getClass().getDeclaredMethod(getGetFieldName(primaryKeyField)).invoke(dtoNeedMapList.get(i));
+                                if (Objects.isNull(dtoPrimaryKeyObject)) {
+                                    throw new UnsetPrimaryKey();
+                                }
                                 for (int ii = 0; ii < entityNeedMapList.size(); ii++) {
                                     // get primary key object depends on primary key field from entity
                                     Object entityPrimaryKeyObject = entityNeedMapList.get(ii).getClass().getMethod(getGetFieldName(primaryKeyField)).invoke(entityNeedMapList.get(ii));
+                                    if (Objects.isNull(entityPrimaryKeyObject)) {
+                                        throw new UnsetPrimaryKey();
+                                    }
                                     // find equality of primary key object and entityNeedMapList
                                     if (entityPrimaryKeyObject.equals(dtoPrimaryKeyObject)) {
                                         break;
                                     }
                                     if (ii == entityNeedMapList.size() - 1) {
                                         // insert new object into entityNeedMapList
-                                        Object entityNeedMapObject = map(entityListType, dtoNeedMapList.get(i));
+                                        Object entityNeedMapObject = map(entityListType, dtoNeedMapList.get(i), specificUnMapFiledArray);
                                         entityNeedMapList.add(entityNeedMapObject);
                                     }
                                 }
@@ -154,7 +175,7 @@ public class Mapper {
                     }
                 } else {
                     if (field.getType().getPackageName().contains(PACKAGE) && !field.getType().isEnum()) {
-                        Object entityObject = map(field.getType(), dto.getClass().getMethod(getGetFieldName(field)).invoke(dto));
+                        Object entityObject = map(field.getType(), dto.getClass().getMethod(getGetFieldName(field)).invoke(dto), specificUnMapFiledArray);
                         entity.getClass().getDeclaredMethod(getSetFieldName(field),field.getType()).invoke(entity, entityObject);
 
                     } else {
@@ -165,6 +186,8 @@ public class Mapper {
                 throw new NotMatchFieldException();
             } catch (NoSuchMethodException e) {
                 throw new NotMatchArgumentException();
+            } catch (UnsetPrimaryKey t) {
+                throw new UnsetPrimaryKey();
             } catch (Throwable t) {
                 throw new UndefinedException();
             }

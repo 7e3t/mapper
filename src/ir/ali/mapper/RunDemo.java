@@ -30,7 +30,7 @@ public class RunDemo {
         personDto.setId(1001L);
         personDto.setPhones(phones);
 
-        Person person = Mapper.map(Person.class, personDto);
+        Person person = Mapper.map(Person.class, personDto, "phones.type", "age");
 
         System.out.println(person);
 
