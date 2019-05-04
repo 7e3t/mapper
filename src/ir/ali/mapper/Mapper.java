@@ -70,7 +70,7 @@ public class Mapper {
      * @param dto dto
      * @param <T> entity class
      * @param <U> dto class
-     * @throws Exception every thing happened
+     * @throws MapperException every thing happened
      */
     public static <T,U> void map(T entity, U dto, String... unMapFields) throws MapperException {
 
@@ -80,12 +80,7 @@ public class Mapper {
             throw new NullArgumentException();
         }
 
-        List<Field> entityFields = new ArrayList<>();
-        Class type = entity.getClass();
-        do {
-            entityFields.addAll(Arrays.asList(type.getDeclaredFields()));
-            type = type.getSuperclass();
-        } while (!type.getName().equals(Object.class.getName()));
+        List<Field> entityFields = getAllFields(entity.getClass());
 
         Map<Field,String> goingToBeMapEntityFields = entityFields .stream()
                 .filter(field -> Objects.isNull(field.getAnnotation(NotMap.class)) && !unMapFieldsList.contains(field.getName()))
@@ -201,13 +196,22 @@ public class Mapper {
     }
 
     private static Field getPrimaryKey(Class type) {
-        Field[] fields = type.getDeclaredFields();
-        for (Field field : fields) {
+        List<Field> entityFields = getAllFields(type);
+        for (Field field : entityFields) {
             if (Objects.nonNull(field.getDeclaredAnnotation(PrimaryKey.class))) {
                 return field;
             }
         }
         return null;
+    }
+
+    private static List<Field> getAllFields(Class type) {
+        List<Field> fields = new ArrayList<>();
+        do {
+            fields.addAll(Arrays.asList(type.getDeclaredFields()));
+            type = type.getSuperclass();
+        } while (!type.getName().equals(Object.class.getName()));
+        return fields;
     }
 
     /**
