@@ -184,13 +184,21 @@ public class Mapper {
                     }
                 }
             } catch (ClassCastException e) {
-                throw new NotMatchFieldException();
+                MapperException mapperException = new NotMatchFieldException();
+                mapperException.initCause(e);
+                throw mapperException;
             } catch (NoSuchMethodException e) {
-                throw new NotMatchArgumentException();
-            } catch (UnsetPrimaryKey t) {
-                throw new UnsetPrimaryKey();
+                MapperException mapperException = new NotMatchArgumentException();
+                mapperException.initCause(e);
+                throw mapperException;
+            } catch (UnsetPrimaryKey e) {
+                MapperException mapperException = new UnsetPrimaryKey();
+                mapperException.initCause(e);
+                throw mapperException;
             } catch (Throwable t) {
-                throw new UndefinedException();
+                MapperException mapperException = new UndefinedException();
+                mapperException.initCause(t);
+                throw mapperException;
             }
         }
     }
