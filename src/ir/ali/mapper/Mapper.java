@@ -19,32 +19,36 @@ public class Mapper {
     /**
      * depends on your package name, mine is <bold>ir.ali.mapper</bold>
      */
-    private static final String PACKAGE = "ir.ali.mapper";
+    private final String PACKAGE;
 
     /**
      * get string
      */
-    private static final String GET = "get";
+    private final String GET = "get";
 
     /**
      * set string
      */
-    private static final String SET = "set";
+    private final String SET = "set";
 
     /**
      * List string
      */
-    private static final String LIST = "List";
+    private final String LIST = "List";
 
     /**
      * package of java.util.List
      */
-    private static final String LIST_PACKAGE = "java.util";
+    private final String LIST_PACKAGE = "java.util";
 
     /**
      * full name of java.util.List
      */
-    private static final String LIST_FULL_NAME = "java.util.List";
+    private final String LIST_FULL_NAME = "java.util.List";
+
+    public Mapper(String PACKAGE) {
+        this.PACKAGE = PACKAGE;
+    }
 
     /**
      * this mapper will map without first initialization of entity
@@ -55,7 +59,7 @@ public class Mapper {
      * @return the initialized entity
      * @throws Exception every thing that happened
      */
-    public static <T,U> T map(Class<T> entityType, U dto, String... unMapFields) throws Exception {
+    public <T,U> T map(Class<T> entityType, U dto, String... unMapFields) throws Exception {
         if (Objects.isNull(entityType)) {
             throw new NullArgumentException();
         }
@@ -72,7 +76,7 @@ public class Mapper {
      * @param <U> dto class
      * @throws MapperException every thing happened
      */
-    public static <T,U> void map(T entity, U dto, String... unMapFields) throws MapperException {
+    public <T,U> void map(T entity, U dto, String... unMapFields) throws MapperException {
 
         List<String> unMapFieldsList = Arrays.asList(unMapFields);
 
@@ -203,7 +207,7 @@ public class Mapper {
         }
     }
 
-    private static Field getPrimaryKey(Class type) {
+    private Field getPrimaryKey(Class type) {
         List<Field> entityFields = getAllFields(type);
         for (Field field : entityFields) {
             if (Objects.nonNull(field.getDeclaredAnnotation(PrimaryKey.class))) {
@@ -213,7 +217,7 @@ public class Mapper {
         return null;
     }
 
-    private static List<Field> getAllFields(Class type) {
+    private List<Field> getAllFields(Class type) {
         List<Field> fields = new ArrayList<>();
         do {
             fields.addAll(Arrays.asList(type.getDeclaredFields()));
@@ -227,7 +231,7 @@ public class Mapper {
      * @param type type for process
      * @return result of process
      */
-    private static boolean isList(Class type) {
+    private boolean isList(Class type) {
         return type.getPackageName().contains(LIST_PACKAGE) && type.getSimpleName().contains(LIST);
     }
 
@@ -236,7 +240,7 @@ public class Mapper {
      * @param field field
      * @return result
      */
-    private static String getGetFieldName(Field field) {
+    private String getGetFieldName(Field field) {
         return GET + String.valueOf(field.getName().charAt(0)).toUpperCase() + field.getName().substring(1);
     }
 
@@ -245,7 +249,7 @@ public class Mapper {
      * @param name name of attribute
      * @return result
      */
-    private static String getGetFieldName(String name) {
+    private String getGetFieldName(String name) {
         return GET + String.valueOf(name.charAt(0)).toUpperCase() + name.substring(1);
     }
 
@@ -254,7 +258,7 @@ public class Mapper {
      * @param field field
      * @return result
      */
-    private static String getSetFieldName(Field field) {
+    private String getSetFieldName(Field field) {
         return SET + String.valueOf(field.getName().charAt(0)).toUpperCase() + field.getName().substring(1);
     }
 
@@ -264,7 +268,7 @@ public class Mapper {
      * @return the type
      * @throws ClassNotFoundException
      */
-    private static Class getListType(Field field) throws ClassNotFoundException {
+    private Class getListType(Field field) throws ClassNotFoundException {
         StringBuilder stringBuilder = new StringBuilder().append(field.getGenericType().getTypeName()).delete(0,LIST_FULL_NAME.length()).deleteCharAt(0);
         stringBuilder.deleteCharAt(stringBuilder.length()-1);
         String entityListTypeFullString = stringBuilder.toString();
